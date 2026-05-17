@@ -1,0 +1,66 @@
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    expose:
+      - "80"
+    environment:
+      APP_NAME: ${APP_NAME:-Send}
+      APP_ENV: ${APP_ENV:-production}
+      APP_DEBUG: ${APP_DEBUG:-false}
+      APP_URL: ${APP_URL:-http://localhost}
+      DB_HOST: db
+      DB_PORT: ${DB_PORT:-3306}
+      DB_DATABASE: ${DB_DATABASE:-hawarsend}
+      DB_USERNAME: ${DB_USERNAME:-hawarsend}
+      DB_PASSWORD: ${DB_PASSWORD:-strong_password_here}
+      UPLOAD_MAX_SIZE: ${UPLOAD_MAX_SIZE:-32212254720}
+      DEFAULT_EXPIRE_HOURS: ${DEFAULT_EXPIRE_HOURS:-24}
+      ALLOW_GUEST_UPLOAD: ${ALLOW_GUEST_UPLOAD:-true}
+      ADMIN_EMAIL: ${ADMIN_EMAIL:-admin@send.hawarserver.com}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:-admin123}
+      SMTP_HOST: ${SMTP_HOST:-}
+      SMTP_PORT: ${SMTP_PORT:-587}
+      SMTP_USER: ${SMTP_USER:-}
+      SMTP_PASS: ${SMTP_PASS:-}
+      SMTP_FROM: ${SMTP_FROM:-}
+      SMTP_FROM_NAME: ${SMTP_FROM_NAME:-Send}
+    volumes:
+      - uploads_data:/var/www/html/storage/uploads
+      - logs_data:/var/www/html/storage/logs
+      - images_data:/var/www/html/public/assets/images
+    depends_on:
+      db:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost/health.php"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+
+  db:
+    image: mariadb:10.11
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD:-root_password_here}
+      MYSQL_DATABASE: ${DB_DATABASE:-hawarsend}
+      MYSQL_USER: ${DB_USERNAME:-hawarsend}
+      MYSQL_PASSWORD: ${DB_PASSWORD:-strong_password_here}
+    volumes:
+      - db_data:/var/lib/mysql
+      - ./database/hawarsend.sql:/docker-entrypoint-initdb.d/001-hawarsend.sql:ro
+    healthcheck:
+      test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+
+volumes:
+  db_data:
+  uploads_data:
+  logs_data:
+  images_data:
